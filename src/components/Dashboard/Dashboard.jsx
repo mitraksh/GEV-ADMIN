@@ -22,9 +22,6 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 
 const drawerWidth = 240;
 
-
-
-
 export default function Dashboard() {
   const [darkMode, setDarkMode] = useState(true);
 

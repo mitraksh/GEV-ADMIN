@@ -1,62 +1,80 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Paper, 
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Popover,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Skeleton,
-  Fab,
-  Chip,
-  Snackbar,
-  Alert
- } from '@mui/material';
-import { getAllDonors } from '../api/donors';
+import {
+  Box, Typography, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TablePagination, Popover, List, ListItem, ListItemIcon, ListItemText, Skeleton, Fab, Chip,
+  Snackbar, Alert, TextField, Grid,
+  Button
+} from '@mui/material';
+import { getAllDonors, filterDonors } from '../api/donors';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-import EditCategoryDialog from '../Category/EditCategoryDialog';
-import CreateCategoryDialog from '../Category/CreateCategoryDialog';
-import DeleteConfirmDialog from '../Category/DeleteConfirmDialog';
 import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import AddIcon from '@mui/icons-material/Add';
-import { red } from '@mui/material/colors';
+import EditDonor from './EditDonor';
 
 const columns = [
   { id: 'id', label: 'ID', minWidth: 50 },
   { id: 'first_name', label: 'First Name', minWidth: 150 },
   { id: 'last_name', label: 'Last Name', minWidth: 150 },
   { id: 'email', label: 'Email', minWidth: 100 },
-  { id: 'contact_no', label: 'Contact', minWidth: 100},
-  { id: 'pan_number', label: 'PAN No.', minWidth: 100},
+  { id: 'contact_no', label: 'Contact', minWidth: 100 },
+  { id: 'pan_number', label: 'PAN No.', minWidth: 100 },
   { id: 'address_line_1', label: 'Address Line 1', minWidth: 200 },
   { id: 'address_line_2', label: 'Address Line 2', minWidth: 200 },
   { id: 'city', label: 'City', minWidth: 100 },
   { id: 'state', label: 'State', minWidth: 100 },
   { id: 'pincode', label: 'Pincode', minWidth: 100 },
-  { id: 'created_at', label: 'Created At', minWidth: 100, format: (value) => dayjs(value).format('DD-MM-YYYY HH:mm:ss') },
-  { id: 'created_by_user_id', label: 'Created By', minWidth: 100 },
-  { id: 'updated_at', label: 'Updated At', minWidth: 100, format: (value) => dayjs(value).format('DD-MM-YYYY HH:mm:ss') },
+  {
+    id: 'created_at',
+    label: 'Created At',
+    minWidth: 200,
+    format: value => value ? dayjs(value).format('DD-MM-YYYY HH:mm:ss') : ''
+  },
+  {
+    id: 'updated_at',
+    label: 'Updated At',
+    minWidth: 200,
+    format: value => value ? dayjs(value).format('DD-MM-YYYY HH:mm:ss') : ''
+  },
   { id: 'updated_by_user_id', label: 'Updated By', minWidth: 100 },
-  { id: 'deleted_at', label: 'Deleted At', minWidth: 100, format: (value) => dayjs(value).format('DD-MM-YYYY HH:mm:ss') },
+  {
+    id: 'deleted_at',
+    label: 'Deleted At',
+    minWidth: 100,
+    format: value => value ? dayjs(value).format('DD-MM-YYYY HH:mm:ss') : ''
+  },
   { id: 'deleted_by_user_id', label: 'Deleted By', minWidth: 100 },
 ];
 
+const highlightMatch = (text, query) => {
+  if (!query || typeof text !== 'string') return text;
+  const regex = new RegExp(`(${query})`, 'gi');
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.toLowerCase() ? (
+      <mark key={i} style={{ backgroundColor: '#FFFF00', padding: '0 2px' }}>{part}</mark>
+    ) : (
+      part
+    )
+  );
+};
+
 export default function Donors() {
-  const [donors, setDonors] = useState([]);
+  const [filteredDonors, setFilteredDonors] = useState([]);
+  const [filters, setFilters] = useState({
+    createdFrom: null,
+    createdTo: null,
+    global: '',
+    totalElements: 123,
+    totalPages: 13,
+    page: 0,
+    size: 10
+  });
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedDonor, setSelectedDonor] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [totalRows, setTotalRows] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const openPopover = Boolean(anchorEl);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -65,14 +83,39 @@ export default function Donors() {
     setSnackbar({ open: true, message, severity });
   };
 
+  const searchDonor = async (newPage = page, newSize = rowsPerPage) => {
+    try {
+      setLoading(true);
+      const payload = {
+        global: filters.global,
+        createdFrom: filters.createdFrom ? dayjs(filters.createdFrom).format("YYYY-MM-DD") : null,
+        createdTo: filters.createdTo ? dayjs(filters.createdTo).format("YYYY-MM-DD") : null,
+        page: newPage,
+        size: newSize
+      };
+      console.log(payload);
+      const response = await filterDonors(payload);
+      console.log(response);
+      setFilteredDonors(response.content);
+      setTotalRows(response.totalElements);
+      setPage(response.page);
+    } catch (err) {
+      console.error('Search failed:', err);
+      showSnackbar('Failed to fetch filtered donors', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
   const handleRowClick = (event, row) => {
     setAnchorEl(event.currentTarget);
-    setSelectedCategory(row);
+    setSelectedDonor(row);
   };
 
   const handleClosePopover = () => {
     setAnchorEl(null);
-    setSelectedCategory(null);
+    setSelectedDonor(null);
   };
 
   const handleEdit = () => {
@@ -80,23 +123,20 @@ export default function Donors() {
     handleClosePopover();
   };
 
-  const handleDelete = () => {
-    setDeleteOpen(true);
-    handleClosePopover();
+  const handleChangePage = async (event, newPage) => {
+    await searchDonor(newPage, rowsPerPage);
   };
-
-  const handleChangePage = (event, newPage) => setPage(newPage);
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
+  
+  const handleChangeRowsPerPage = async (event) => {
+    const newSize = +event.target.value;
+    setRowsPerPage(newSize);
+    await searchDonor(0, newSize); // reset to page 0
   };
 
   const fetchDonors = async () => {
     try {
       const getDonors = await getAllDonors();
-      if (getDonors.length > 0) {
-        setDonors(getDonors);
-      }
+      setFilteredDonors(getDonors);
     } catch (error) {
       console.error("Error fetching donors:", error);
     } finally {
@@ -107,22 +147,6 @@ export default function Donors() {
   useEffect(() => {
     fetchDonors();
   }, []);
-
-  function NullValuePill({ label = "N/A", color = "default" }) {
-    return (
-      <Chip
-      label={label}
-      sx={{
-        fontSize: '0.75rem',
-        fontWeight: 500,
-        background: 'linear-gradient(145deg, #ff4d4d, #cc0000)',
-        color: '#fff',
-        border: '1px solid #b30000',
-        boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 2px 5px rgba(0,0,0,0.2)'
-      }}
-      />
-    );
-  }
 
   if (loading) {
     return (
@@ -139,21 +163,39 @@ export default function Donors() {
     );
   }
 
-
   return (
     <Box>
-    <Typography variant="h5" gutterBottom>Donors List</Typography>
+      <Typography variant="h5" gutterBottom>Donors List</Typography>
 
-    {loading ? (
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h6">Loading Donors...</Typography>
-        {[...Array(5)].map((_, i) => (
-          <Box key={i} sx={{ mb: 2 }}>
-            <Skeleton variant="rectangular" height={50} />
-          </Box>
-        ))}
+      <Box display="flex" flexWrap="wrap" alignItems="center" gap={2} mb={2}>
+        <DatePicker
+          label="Created From"
+          value={filters.createdFrom}
+          onChange={(newValue) => setFilters({ ...filters, createdFrom: newValue })}
+          slotProps={{ textField: { size: 'small' } }}
+        />
+        <DatePicker
+          label="Created To"
+          value={filters.createdTo}
+          onChange={(newValue) => setFilters({ ...filters, createdTo: newValue })}
+          slotProps={{ textField: { size: 'small' } }}
+        />
+        <TextField
+          size="small"
+          label="Search Anything"
+          value={filters.global}
+          onChange={(e) => setFilters({ ...filters, global: e.target.value })}
+          sx={{ minWidth: 150 }}
+        />
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => searchDonor(0, rowsPerPage)}
+        >
+          Search
+        </Button>
       </Box>
-    ) : (
+
       <Paper sx={{ width: '100%', overflow: 'auto' }}>
         <TableContainer>
           <Table stickyHeader>
@@ -167,7 +209,7 @@ export default function Donors() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {donors.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, idx) => (
+              {filteredDonors.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, idx) => (
                 <TableRow
                   hover
                   key={idx}
@@ -178,7 +220,13 @@ export default function Donors() {
                     const value = row[column.id];
                     return (
                       <TableCell key={column.id}>
-                        {column.format ? column.format(value) : value || <NullValuePill label="null" />}
+                        {value === null || value === undefined || value === '' ? (
+                          ''
+                        ) : column.format ? (
+                          highlightMatch(column.format(value), filters.global)
+                        ) : (
+                          highlightMatch(String(value), filters.global)
+                        )}
                       </TableCell>
                     );
                   })}
@@ -189,7 +237,7 @@ export default function Donors() {
         </TableContainer>
         <TablePagination
           component="div"
-          count={donors.length}
+          count={totalRows}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -197,73 +245,38 @@ export default function Donors() {
           sx={{position: 'absolute'}}
         />
       </Paper>
-    )}
 
-      {/* FAB to Create Category */}
-      <Fab
-          color="primary"
-          sx={{ position: 'fixed', bottom: 100, right: 50 }}
-          onClick={() => {
-          setCreateOpen(true);
-          }}
+      <Popover
+        open={openPopover}
+        anchorEl={anchorEl}
+        onClose={handleClosePopover}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       >
-      <AddIcon />
-    </Fab>
+        <List dense>
+          <ListItem button onClick={handleEdit}>
+            <ListItemIcon><EditIcon /></ListItemIcon>
+            <ListItemText primary="Update" />
+          </ListItem>
+        </List>
+      </Popover>
 
-    {/* Popover with actions */}
-    <Popover
-      open={openPopover}
-      anchorEl={anchorEl}
-      onClose={handleClosePopover}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-    >
-      <List dense>
-        <ListItem button onClick={handleEdit}>
-          <ListItemIcon><EditIcon /></ListItemIcon>
-          <ListItemText primary="Update" />
-        </ListItem>
-        <ListItem button onClick={handleDelete}>
-          <ListItemIcon><DeleteIcon color="error" /></ListItemIcon>
-          <ListItemText primary="Delete" />
-        </ListItem>
-      </List>
-    </Popover>
+      <EditDonor
+        open={editOpen}
+        donor={selectedDonor}
+        onClose={() => setEditOpen(false)}
+        onUpdated={fetchDonors}
+      />
 
-    {/* Edit Modal */}
-    <EditCategoryDialog
-      open={editOpen}
-      category={selectedCategory}
-      onClose={() => setEditOpen(false)}
-      onUpdated={fetchDonors}
-    />
-
-    {/* Delete Confirmation Dialog */}
-    <DeleteConfirmDialog
-      open={deleteOpen}
-      category={selectedCategory}
-      onClose={() => setDeleteOpen(false)}
-      onDeleted={fetchDonors}
-    />
-
-      {/* Create Modal */}
-      <CreateCategoryDialog
-      open={createOpen}
-      onClose={() => setCreateOpen(false)}
-      onUpdated={fetchDonors}
-    />
-
-
-    {/* Snackbar Notification */}
-    <Snackbar
-      open={snackbar.open}
-      autoHideDuration={4000}
-      onClose={() => setSnackbar({ ...snackbar, open: false })}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-    >
-      <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-        {snackbar.message}
-      </Alert>
-    </Snackbar>
-  </Box>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }

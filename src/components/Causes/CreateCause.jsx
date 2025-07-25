@@ -11,12 +11,10 @@ import {
   IconButton
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { createCause } from '../api/cause';
 
-import axios from 'axios';
-import { createCategory } from '../api/category';
-
-export default function CreateCategoryDialog({ open, onClose, onCreated }) {
-    const [form, setForm] = useState({ name: '', description: '', parent_id: '' });
+export default function CreateCause({ open, onClose, onCreated }) {
+    const [form, setForm] = useState({ display_name: '', default_amount: '', category_id: ''});
     const [image, setImage] = useState(null);
     const [imageSm, setImageSm] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -55,17 +53,17 @@ export default function CreateCategoryDialog({ open, onClose, onCreated }) {
     setSubmitting(true);
     try {
       const data = new FormData();
-      data.append('name', form.name);
-      data.append('description', form.description);
-      data.append('parent_id', form.parent_id);
+      data.append('display_name', form.display_name);
+      data.append('default_amount', form.default_amount);
       if (image) data.append('image', image);
       if (imageSm) data.append('image_sm', imageSm);
 
-      const newCategory = await createCategory(data);
+      const newCause = await createCause(data, form.category_id) 
 
-      if(newCategory.ok){
-        console.log("new category");
+      if(newCause.ok){
+        console.log('new created');
       }
+
       onClose();
     } catch (error) {
       console.error('Failed to create category:', error);
@@ -76,30 +74,28 @@ export default function CreateCategoryDialog({ open, onClose, onCreated }) {
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Create New Category</DialogTitle>
+      <DialogTitle>Create New Cause</DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
-            name="name"
+            name="display_name"
             label="Name"
             fullWidth
-            value={form.name}
+            value={form.display_name}
             onChange={handleChange}
           />
           <TextField
-            name="description"
-            label="Description"
+            name="default_amount"
+            label="Amount"
             fullWidth
-            multiline
-            rows={3}
-            value={form.description}
+            value={form.default_amount}
             onChange={handleChange}
           />
           <TextField
-            name="parent_id"
+            name="category_id"
             label="Parent ID"
             fullWidth
-            value={form.parent_id}
+            value={form.category_id}
             onChange={handleChange}
           />
         <Box>

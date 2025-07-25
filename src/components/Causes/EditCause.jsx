@@ -9,26 +9,25 @@ import {
   Box,
   InputLabel
 } from '@mui/material';
-import { updateCategory } from '../api/category';
+import { updateCause } from '../api/cause';
 
-export default function EditCategoryDialog({ open, category, onClose, onUpdated }) {
+export default function EditCause({ open, cause, onClose, onUpdated }) {
   const [image, setImage] = useState(null);
   const [imageSm, setImageSm] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageSmPreview, setImageSmPreview] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', parent_id: '' });
+  const [form, setForm] = useState({ display_name: '', default_amount: ''});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (category) {
+    if (cause) {
       setForm({
-        id: category.id || '',
-        name: category.name || '',
-        description: category.description || '',
-        parent_id: category.parent_id || ''
+        id: cause.id || '',
+        display_name: cause.display_name || '',
+        default_amount: cause.default_amount || '',
       });
     }
-  }, [category]);
+  }, [cause]);
 
   const handleFileChange = (e, type) => {
     const file = e.target.files[0];
@@ -52,17 +51,15 @@ export default function EditCategoryDialog({ open, category, onClose, onUpdated 
     setSubmitting(true);
     try {
       const data = new FormData();
-      data.append('name', form.name);
-      data.append('description', form.description);
-      data.append('parent_id', form.parent_id);
+      data.append('display_name', form.display_name);
+      data.append('default_amount', form.default_amount);
       if (image) data.append('image', image);
       if (imageSm) data.append('image_sm', imageSm);
-      console.log(data);
-      const update = await updateCategory(data,form.id);
+     const update = await updateCause(data,form.id);
       onUpdated();
       onClose();
     } catch (error) {
-      console.error('Failed to update category:', error);
+      console.error('Failed to update cause:', error);
     } finally {
       setSubmitting(false);
     }
@@ -70,30 +67,21 @@ export default function EditCategoryDialog({ open, category, onClose, onUpdated 
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Update Category</DialogTitle>
+      <DialogTitle>Update Cause</DialogTitle>
       <DialogContent>
         <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
           <TextField
-            name="name"
+            name="display_name"
             label="Name"
             fullWidth
-            value={form.name}
+            value={form.display_name}
             onChange={handleChange}
           />
           <TextField
-            name="description"
+            name="default_amount"
             label="Description"
             fullWidth
-            multiline
-            rows={3}
-            value={form.description}
-            onChange={handleChange}
-          />
-          <TextField
-            name="parent_id"
-            label="Parent ID"
-            fullWidth
-            value={form.parent_id}
+            value={form.default_amount}
             onChange={handleChange}
           />
         <Box>
